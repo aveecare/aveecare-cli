@@ -157,7 +157,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
               "flag": "active",
               "type": "boolean",
               "nullable": true,
-              "description": "Whether the patient is an active client. Only active clients are scheduled and billed. A prospective client is always inactive."
+              "description": "Whether the patient is an active client. Only active clients are scheduled and billed. A prospective client is always inactive. If you leave it out on create, it is `false` for a prospect or an `Inactive` or `Discharged` status and `true` otherwise."
             },
             {
               "wire": "status",
@@ -170,7 +170,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
                 "Discharged"
               ],
               "nullable": true,
-              "description": "The client's status as shown in AveeCare. `Inactive` and `Discharged` mean the person is no longer receiving care. A prospective client (`lifecycleStage: Prospect`) reads `Prospect` even if you send `Active`."
+              "description": "The client's status as shown in AveeCare. `Inactive` and `Discharged` mean the person is no longer receiving care. A prospective client (`lifecycleStage: Prospect`) reads `Prospect` even if you send `Active`. Creating a patient with `Prospect` makes them a prospective client. Defaults to `Active`."
             },
             {
               "wire": "lifecycleStage",
@@ -181,7 +181,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
                 "Client"
               ],
               "nullable": true,
-              "description": "Whether this person is a prospective client or an admitted client. `null` means client."
+              "description": "Whether this person is a prospective client or an admitted client. `null` means client. Prospects appear in the prospective-patient pool in AveeCare, not on the patient roster."
             },
             {
               "wire": "serviceType",
@@ -447,7 +447,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
               "flag": "active",
               "type": "boolean",
               "nullable": true,
-              "description": "Whether the patient is an active client. Only active clients are scheduled and billed. A prospective client is always inactive."
+              "description": "Whether the patient is an active client. Only active clients are scheduled and billed. A prospective client is always inactive. If you leave it out on create, it is `false` for a prospect or an `Inactive` or `Discharged` status and `true` otherwise."
             },
             {
               "wire": "status",
@@ -460,7 +460,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
                 "Discharged"
               ],
               "nullable": true,
-              "description": "The client's status as shown in AveeCare. `Inactive` and `Discharged` mean the person is no longer receiving care. A prospective client (`lifecycleStage: Prospect`) reads `Prospect` even if you send `Active`."
+              "description": "The client's status as shown in AveeCare. `Inactive` and `Discharged` mean the person is no longer receiving care. A prospective client (`lifecycleStage: Prospect`) reads `Prospect` even if you send `Active`. Creating a patient with `Prospect` makes them a prospective client. Defaults to `Active`."
             },
             {
               "wire": "lifecycleStage",
@@ -471,7 +471,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
                 "Client"
               ],
               "nullable": true,
-              "description": "Whether this person is a prospective client or an admitted client. `null` means client."
+              "description": "Whether this person is a prospective client or an admitted client. `null` means client. Prospects appear in the prospective-patient pool in AveeCare, not on the patient roster."
             },
             {
               "wire": "serviceType",
@@ -2120,7 +2120,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
               "flag": "active",
               "type": "boolean",
               "nullable": true,
-              "description": "Whether the caregiver can be scheduled."
+              "description": "Whether the caregiver can be scheduled. If you leave it out on create, it is `false` for an `Inactive` status and `true` otherwise."
             },
             {
               "wire": "dateOfBirth",
@@ -2308,7 +2308,7 @@ export const RESOURCES: readonly ResourceSpec[] = [
               "flag": "active",
               "type": "boolean",
               "nullable": true,
-              "description": "Whether the caregiver can be scheduled."
+              "description": "Whether the caregiver can be scheduled. If you leave it out on create, it is `false` for an `Inactive` status and `true` otherwise."
             },
             {
               "wire": "dateOfBirth",
