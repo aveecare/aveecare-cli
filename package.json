@@ -1,0 +1,52 @@
+{
+  "name": "aveecare-cli",
+  "version": "0.1.0",
+  "description": "The official command line tool for the AveeCare API: list, create and update patients, visits, caregivers and more from your terminal and shell scripts.",
+  "keywords": [
+    "aveecare",
+    "cli",
+    "home care",
+    "home care software",
+    "home health",
+    "EVV",
+    "caregiver scheduling",
+    "healthcare API",
+    "api"
+  ],
+  "homepage": "https://www.aveecare.com/docs/api",
+  "bugs": {
+    "url": "https://github.com/aveecare/aveecare-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aveecare/aveecare-cli.git"
+  },
+  "license": "MIT",
+  "author": "AveeCare (https://www.aveecare.com)",
+  "type": "module",
+  "bin": {
+    "aveecare": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/cli.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {
+    "aveecare": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "^5.6.0"
+  }
+}
