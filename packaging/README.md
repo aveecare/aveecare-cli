@@ -124,10 +124,13 @@ newer Node.js, such as NodeSource's.
 
 ### openSUSE Build Service
 
-1. Create an account on https://build.opensuse.org and a package `aveecare-cli` in
-   your home project. Add the repositories to build for, such as openSUSE Tumbleweed
-   and Leap, Fedora, Debian 12 and 13, and Ubuntu 24.04 and 26.04.
+1. Create an account on https://build.opensuse.org.
 2. Secrets `OBS_USERNAME` and `OBS_PASSWORD`; variable `OBS_PROJECT` = `home:<name>`.
+
+The first upload creates the project and the `aveecare-cli` package if they are missing.
+A project with no repositories gets openSUSE Tumbleweed, Leap 16.0 and 15.6, Fedora 44
+and 43, Debian 13 and 12, and Ubuntu 26.04 and 24.04 (see `packaging/obs/upload.sh`).
+Repositories added or removed on the website afterwards are left alone.
 
 OBS builds RPMs from the spec and `.deb`s from the Debian source package.
 

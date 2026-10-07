@@ -7,7 +7,11 @@
 #
 #   packaging/obs/upload.sh home:aveecare aveecare-cli
 #
-# Environment: PACKAGER (required), RPM_RELEASE, DEB_REVISION.
+# Creates the project and package when they do not exist yet, and gives a project
+# without repositories the default set in repositories() below.
+#
+# Environment: PACKAGER (required), RPM_RELEASE, DEB_REVISION, OBS_USERNAME (the
+# maintainer of a project it creates; defaults to the name after "home:").
 set -euo pipefail
 
 project=${1:?usage: upload.sh <project> <package>}
@@ -22,6 +26,52 @@ bash "$here/../deb/build.sh" source
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cd "$work"
+
+# <repository name> <distribution project> <its repositories to build against...>
+repositories() {
+  local name dist repos repo
+  while read -r name dist repos; do
+    printf '  <repository name="%s">\n' "$name"
+    for repo in $repos; do
+      printf '    <path project="%s" repository="%s"/>\n' "$dist" "$repo"
+    done
+    printf '    <arch>x86_64</arch>\n  </repository>\n'
+  done <<'END'
+openSUSE_Tumbleweed openSUSE:Factory snapshot
+openSUSE_Leap_16.0 openSUSE:Leap:16.0 standard
+openSUSE_Leap_15.6 openSUSE:Leap:15.6 standard
+Fedora_44 Fedora:44 update
+Fedora_43 Fedora:43 update
+Debian_13 Debian:13 update
+Debian_12 Debian:12 update
+xUbuntu_26.04 Ubuntu:26.04 universe-update update
+xUbuntu_24.04 Ubuntu:24.04 universe-update update
+END
+}
+
+if ! osc meta prj "$project" > project.xml 2> /dev/null; then
+  cat > project.xml <<END
+<project name="$project">
+  <title>AveeCare</title>
+  <description>The aveecare command line tool.</description>
+  <person userid="${OBS_USERNAME:-${project#home:}}" role="maintainer"/>
+</project>
+END
+fi
+if ! grep -q '<repository' project.xml; then
+  { sed '/<\/project>/d' project.xml; repositories; echo '</project>'; } > project.new.xml
+  osc meta prj -F project.new.xml "$project"
+fi
+if ! osc meta pkg "$project" "$package" > /dev/null 2>&1; then
+  cat > package.xml <<END
+<package name="$package" project="$project">
+  <title>aveecare-cli</title>
+  <description>The aveecare command line tool for the AveeCare API.</description>
+</package>
+END
+  osc meta pkg -F package.xml "$project" "$package"
+fi
+
 osc checkout "$project" "$package"
 cd "$project/$package"
 # Replace the previous release's files with this one's.

@@ -281,3 +281,4 @@ jobs:
       - run: bash packaging/obs/upload.sh "$OBS_PROJECT" aveecare-cli
         env:
           OBS_PROJECT: ${{ vars.OBS_PROJECT }}
+          OBS_USERNAME: ${{ secrets.OBS_USERNAME }}
