@@ -1,5 +1,7 @@
 // Runs the built CLI (dist/cli.js) as a child process against a local HTTP
-// server that records every request and answers from a queue.
+// server that records every request and answers from a queue. Set
+// AVEECARE_CLI_COMMAND to an installed `aveecare` executable to run the same
+// tests against a packaged build instead.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -10,6 +12,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CLI = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
+const [COMMAND, PREFIX] = process.env.AVEECARE_CLI_COMMAND
+  ? [process.env.AVEECARE_CLI_COMMAND, []]
+  : [process.execPath, [CLI]];
 const KEY = 'ak_test1234_secretsecret';
 
 let server;
@@ -41,7 +46,7 @@ function reply(status, json, headers) {
 function cli(args, { input, env = {} } = {}) {
   requests.length = 0;
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [CLI, ...args], {
+    const child = spawn(COMMAND, [...PREFIX, ...args], {
       env: { ...process.env, AVEECARE_API_KEY: KEY, AVEECARE_BASE_URL: baseURL, ...env },
       stdio: ['pipe', 'pipe', 'pipe'],
     });

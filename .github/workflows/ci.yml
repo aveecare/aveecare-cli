@@ -27,3 +27,20 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm pack --dry-run
+
+  # The standalone bundle that the Linux and Homebrew packages install.
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm install --no-package-lock
+      - run: npm run bundle
+      - name: Test the bundle
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundle"
+          tar -xzf release/aveecare-cli-*.tar.gz -C "$RUNNER_TEMP/bundle"
+          AVEECARE_CLI_COMMAND="$(echo "$RUNNER_TEMP"/bundle/aveecare-cli-*/aveecare.cjs)" \
+            node --test --test-reporter=tap test/cli.test.mjs

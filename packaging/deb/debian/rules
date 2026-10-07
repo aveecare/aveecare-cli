@@ -1,0 +1,7 @@
+#!/usr/bin/make -f
+# The release tarball holds a ready-to-run bundle; there is nothing to compile.
+%:
+	dh $@
+
+override_dh_installchangelogs:
+	dh_installchangelogs CHANGELOG.md

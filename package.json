@@ -40,6 +40,7 @@
     "build": "node scripts/clean.mjs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test test/cli.test.mjs",
+    "bundle": "npm run build && node scripts/bundle.mjs",
     "prepublishOnly": "npm test"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.6.0"
   }
 }

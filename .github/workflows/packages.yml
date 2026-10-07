@@ -1,0 +1,283 @@
+name: Release packages
+
+# On a version tag: builds the standalone bundle, attaches it to a GitHub
+# release, and publishes it to every package channel whose repository variable
+# is set (Settings > Secrets and variables > Actions > Variables). Channels
+# without their variable are skipped. packaging/README.md has the one-time
+# setup for each channel.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  PACKAGER: ${{ vars.PACKAGER }}
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the GitHub release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the tag matches package.json
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - name: Check PACKAGER is set
+        run: test -n "$PACKAGER" || { echo '::error::Set the PACKAGER repository variable to "Name <email>".'; exit 1; }
+      - run: npm install --no-package-lock
+      - run: npm test
+      - run: npm run bundle
+      - name: Test the bundle
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundle"
+          tar -xzf release/aveecare-cli-*.tar.gz -C "$RUNNER_TEMP/bundle"
+          AVEECARE_CLI_COMMAND="$(echo "$RUNNER_TEMP"/bundle/aveecare-cli-*/aveecare.cjs)" \
+            node --test --test-reporter=tap test/cli.test.mjs
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # A re-run: keep the published tarball so every channel's checksum
+            # matches the file people download.
+            echo "Release $GITHUB_REF_NAME exists; using its tarball."
+            gh release download "$GITHUB_REF_NAME" --dir release --pattern 'aveecare-cli-*' --clobber
+          else
+            version=${GITHUB_REF_NAME#v}
+            # The CHANGELOG section for this version, without its heading.
+            awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+            gh release create "$GITHUB_REF_NAME" release/* --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release/
+
+  deb:
+    needs: bundle
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev debhelper
+      - run: bash packaging/deb/build.sh binary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: build/deb/*.deb
+
+  rpm:
+    needs: bundle
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - run: dnf install -y rpm-build nodejs git
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: RPM_NO_DIST=1 bash packaging/rpm/build.sh rpm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: build/rpm/*.noarch.rpm
+
+  # The AveeCare apt and yum repository, a GitHub Pages site in vars.PACKAGES_REPO.
+  apt-yum-repo:
+    needs: [deb, rpm]
+    if: vars.PACKAGES_REPO != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb
+          path: build/deb
+      - uses: actions/download-artifact@v4
+        with:
+          name: rpm
+          path: build/rpm
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.PACKAGES_REPO }}
+          token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+          path: site
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm
+      - name: Import the signing key
+        env:
+          KEY: ${{ secrets.REPO_GPG_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$KEY" | gpg --batch --import
+          echo "REPO_SIGN_KEYID=$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')" >> "$GITHUB_ENV"
+      - run: bash packaging/repo/build.sh site
+        env:
+          REPO_BASE_URL: ${{ vars.PACKAGES_URL }}
+      - name: Publish
+        run: |
+          cd site
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && { echo "Already up to date."; exit 0; }
+          git commit -m "aveecare-cli ${GITHUB_REF_NAME#v}"
+          git push
+
+  homebrew:
+    needs: bundle
+    if: vars.HOMEBREW_TAP != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: bash packaging/homebrew/build.sh
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.HOMEBREW_TAP }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Publish
+        run: |
+          mkdir -p tap/Formula
+          cp build/homebrew/aveecare.rb tap/Formula/aveecare.rb
+          cd tap
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Formula/aveecare.rb
+          git diff --cached --quiet && { echo "Already up to date."; exit 0; }
+          git commit -m "aveecare ${GITHUB_REF_NAME#v}"
+          git push
+
+  aur:
+    needs: bundle
+    if: vars.PUBLISH_AUR == 'true'
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm --needed base-devel git openssh
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - name: Render PKGBUILD and .SRCINFO
+        # makepkg refuses to run as root.
+        run: |
+          useradd -m builder
+          chown -R builder .
+          runuser -u builder -- env PACKAGER="$PACKAGER" bash packaging/aur/build.sh srcinfo
+      - name: Publish
+        env:
+          SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          # Pinned to the Ed25519 host key published on https://aur.archlinux.org
+          # (SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4).
+          echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes'
+          git config --global --add safe.directory '*'
+          git clone ssh://aur@aur.archlinux.org/aveecare-cli.git aur
+          cp build/aur/PKGBUILD build/aur/.SRCINFO aur/
+          cd aur
+          email=${PACKAGER#*<}
+          git config user.name "${PACKAGER% <*}"
+          git config user.email "${email%>*}"
+          git add PKGBUILD .SRCINFO
+          git diff --cached --quiet && { echo "Already up to date."; exit 0; }
+          git commit -m "aveecare-cli ${GITHUB_REF_NAME#v}"
+          git push origin HEAD:master
+
+  ppa:
+    needs: bundle
+    if: vars.PPA != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev debhelper devscripts dput
+      - name: Import the signing key
+        env:
+          KEY: ${{ secrets.PPA_GPG_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$KEY" | gpg --batch --import
+          echo "DEB_SIGN_KEYID=$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')" >> "$GITHUB_ENV"
+      # vars.PPA_SERIES is a space-separated list; empty means the script's default.
+      - run: |
+          read -ra series <<< "$PPA_SERIES"
+          bash packaging/deb/upload-ppa.sh "$PPA" "${series[@]}"
+        env:
+          PPA: ${{ vars.PPA }}
+          PPA_SERIES: ${{ vars.PPA_SERIES }}
+
+  copr:
+    needs: bundle
+    if: vars.COPR_PROJECT != ''
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - run: dnf install -y rpm-build copr-cli git
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - name: Configure copr-cli
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+        run: |
+          install -d -m 700 ~/.config
+          printf '%s\n' "$COPR_CONFIG" > ~/.config/copr && chmod 600 ~/.config/copr
+      - run: bash packaging/rpm/upload-copr.sh "$COPR_PROJECT"
+        env:
+          COPR_PROJECT: ${{ vars.COPR_PROJECT }}
+
+  obs:
+    needs: bundle
+    if: vars.OBS_PROJECT != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev debhelper osc
+      - name: Configure osc
+        env:
+          OBS_USERNAME: ${{ secrets.OBS_USERNAME }}
+          OBS_PASSWORD: ${{ secrets.OBS_PASSWORD }}
+        run: |
+          install -d -m 700 ~/.config/osc
+          cat > ~/.config/osc/oscrc <<EOF
+          [general]
+          apiurl = https://api.opensuse.org
+
+          [https://api.opensuse.org]
+          user = $OBS_USERNAME
+          pass = $OBS_PASSWORD
+          credentials_mgr_class = osc.credentials.PlaintextConfigFileCredentialsManager
+          EOF
+          chmod 600 ~/.config/osc/oscrc
+      - run: bash packaging/obs/upload.sh "$OBS_PROJECT" aveecare-cli
+        env:
+          OBS_PROJECT: ${{ vars.OBS_PROJECT }}

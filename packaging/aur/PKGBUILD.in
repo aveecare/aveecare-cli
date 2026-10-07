@@ -1,0 +1,27 @@
+# Maintainer: @PACKAGER@
+# Rendered by packaging/aur/build.sh; edit PKGBUILD.in, not the output.
+pkgname=aveecare-cli
+pkgver=@VERSION@
+pkgrel=@PKGREL@
+pkgdesc='Command line tool for the AveeCare home care API'
+arch=('any')
+url='https://github.com/aveecare/aveecare-cli'
+license=('MIT')
+depends=('nodejs>=18')
+source=("$url/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
+sha256sums=('@SHA256@')
+
+check() {
+  cd "$pkgname-$pkgver"
+  test "$(node aveecare.cjs --version)" = "$pkgver"
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 aveecare.cjs "$pkgdir/usr/lib/$pkgname/aveecare.cjs"
+  install -d "$pkgdir/usr/bin"
+  ln -s "/usr/lib/$pkgname/aveecare.cjs" "$pkgdir/usr/bin/aveecare"
+  install -Dm644 aveecare.1 "$pkgdir/usr/share/man/man1/aveecare.1"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md CHANGELOG.md -t "$pkgdir/usr/share/doc/$pkgname"
+}

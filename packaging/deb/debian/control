@@ -1,0 +1,21 @@
+Source: aveecare-cli
+Section: utils
+Priority: optional
+Maintainer: @PACKAGER@
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://www.aveecare.com/docs/api
+Vcs-Browser: https://github.com/aveecare/aveecare-cli
+Vcs-Git: https://github.com/aveecare/aveecare-cli.git
+
+Package: aveecare-cli
+Architecture: all
+Depends: nodejs (>= 18), ${misc:Depends}
+Description: command line tool for the AveeCare home care API
+ The official command line tool for the AveeCare API. List, create and update
+ a home care agency's patients, visits, caregivers, invoices and more from the
+ terminal, cron jobs and shell scripts. Output is JSON, so it pipes straight
+ into jq.
+ .
+ This package installs the aveecare command.
