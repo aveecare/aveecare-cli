@@ -103,9 +103,11 @@ published SSH host key.
    keyserver.ubuntu.com and add it under your Launchpad profile's OpenPGP keys.
    Launchpad may ask you to sign the Ubuntu Code of Conduct before you can make a PPA.
 2. Create a PPA named `aveecare-cli`.
-3. Secret `PPA_GPG_PRIVATE_KEY` (the key registered on Launchpad); variable `PPA` =
+3. Variable `PPA` =
    `ppa:<launchpad-name>/aveecare-cli`. Optionally `PPA_SERIES`, a space-separated
-   list; the default is `noble resolute` (24.04 and 26.04).
+   list; the default is `noble resolute` (24.04 and 26.04). Uploads are signed with
+   `REPO_GPG_PRIVATE_KEY`, so register that key on Launchpad; to sign with a different
+   one, set it as the secret `PPA_GPG_PRIVATE_KEY`.
 
 Ubuntu 22.04 and older ship Node.js 12, so the package only installs there next to a
 newer Node.js, such as NodeSource's.
