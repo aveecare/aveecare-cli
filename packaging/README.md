@@ -69,8 +69,10 @@ Keep an offline backup of the key. Losing it means every user has to trust a new
 
 1. Create a public repository, for example `aveecare/packages`, with one commit (any
    README). Turn on GitHub Pages for it: Settings > Pages > Deploy from a branch, `main`, `/`.
-2. Create a fine-grained token with Contents: read and write on that repository only.
-3. Secrets: `PACKAGES_REPO_TOKEN` (the token), `REPO_GPG_PRIVATE_KEY` (the signing key).
+2. Make an SSH key just for this (`ssh-keygen -t ed25519 -N '' -f packages_deploy`) and
+   add its public half under that repository's Settings > Deploy keys, with write access.
+3. Secrets: `PACKAGES_REPO_DEPLOY_KEY` (the private half), `REPO_GPG_PRIVATE_KEY` (the
+   signing key).
 4. Variables: `PACKAGES_REPO` = `aveecare/packages`. If it is served from a custom
    domain, also `PACKAGES_URL`, such as `https://packages.aveecare.com` (add that
    domain in the Pages settings). The default is `https://aveecare.github.io/packages`.
@@ -82,8 +84,9 @@ The generated `index.html` has the install steps for apt, dnf and zypper.
 
 1. Create a public repository named `aveecare/homebrew-tap`. The `homebrew-` prefix is
    what makes `brew install aveecare/tap/aveecare` work.
-2. Create a fine-grained token with Contents: read and write on that repository only.
-3. Secret `HOMEBREW_TAP_TOKEN`; variable `HOMEBREW_TAP` = `aveecare/homebrew-tap`.
+2. Add a write-access deploy key to it, made the same way as for the apt and yum repository.
+3. Secret `HOMEBREW_TAP_DEPLOY_KEY` (the private half); variable `HOMEBREW_TAP` =
+   `aveecare/homebrew-tap`.
 
 ### Arch AUR
 
