@@ -68,7 +68,7 @@ jobs:
         with:
           name: release
           path: release
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev debhelper
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential dpkg-dev debhelper
       - run: bash packaging/deb/build.sh binary
       - uses: actions/upload-artifact@v4
         with:
@@ -214,7 +214,7 @@ jobs:
         with:
           name: release
           path: release
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev debhelper devscripts dput
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential dpkg-dev debhelper devscripts dput
       - name: Import the signing key
         env:
           KEY: ${{ secrets.PPA_GPG_PRIVATE_KEY || secrets.REPO_GPG_PRIVATE_KEY }}
@@ -261,7 +261,7 @@ jobs:
         with:
           name: release
           path: release
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev debhelper osc
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential dpkg-dev debhelper osc
       - name: Configure osc
         env:
           OBS_USERNAME: ${{ secrets.OBS_USERNAME }}
