@@ -25,6 +25,17 @@ root=$(cd "$here/../.." && pwd)
 version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$root/package.json")
 for s in "${series[@]}"; do
   bash "$here/build.sh" source "$s"
-  # shellcheck disable=SC2086
-  dput ${DPUT_FLAGS:-} "$ppa" "$root/build/deb/aveecare-cli_$version-${DEB_REVISION:-1}~${s}1_source.changes"
+  changes="$root/build/deb/aveecare-cli_$version-${DEB_REVISION:-1}~${s}1_source.changes"
+  # Launchpad's FTP server sometimes answers "550 internal server error" to an
+  # upload that goes through a minute later, so retry; -f re-sends files that a
+  # failed attempt already recorded as uploaded.
+  force=()
+  for attempt in 1 2 3 4; do
+    # shellcheck disable=SC2086
+    dput ${DPUT_FLAGS:-} "${force[@]}" "$ppa" "$changes" && break
+    [ "$attempt" = 4 ] && exit 1
+    echo "Upload failed; retrying in $((attempt * 60)) seconds." >&2
+    sleep $((attempt * 60))
+    force=(-f)
+  done
 done
